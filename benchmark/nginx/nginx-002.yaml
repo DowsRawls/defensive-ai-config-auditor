@@ -1,0 +1,21 @@
+id: nginx-002
+domain: nginx
+title: Directory listing enabled
+description: A public files location enables automatic directory index generation.
+config: |
+  server {
+    listen 80;
+    server_name example.invalid;
+    location /files/ {
+      root /srv/public;
+      autoindex on;
+    }
+  }
+expected_findings:
+  - id: directory-listing-enabled
+    severity: medium
+    rationale: Generated listings may expose filenames and content not intended for discovery.
+    remediation: Disable autoindex unless directory browsing is an explicit reviewed requirement.
+    validation: Check syntax and confirm directory requests no longer return generated listings.
+human_review: Verify whether listing is a deliberate product feature and review all published files.
+tags: [information-exposure]

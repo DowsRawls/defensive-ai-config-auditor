@@ -1,0 +1,16 @@
+id: linux-002
+domain: linux
+title: Service runs as root without hardening
+description: A network-facing synthetic systemd unit uses the default root identity and no listed sandboxing.
+config: |
+  [Service]
+  ExecStart=/usr/local/bin/example-api
+  Restart=on-failure
+expected_findings:
+  - id: service-root-without-justification
+    severity: high
+    rationale: A network-facing process running as root increases impact if the process fails or is compromised.
+    remediation: Use a dedicated unprivileged identity and add compatible systemd sandboxing directives incrementally.
+    validation: Run systemd verification and integration tests under the restricted service identity.
+human_review: Determine required files, ports, capabilities, and kernel interfaces before choosing restrictions.
+tags: [systemd, least-privilege]

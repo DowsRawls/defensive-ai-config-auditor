@@ -1,0 +1,18 @@
+id: docker-002
+domain: docker
+title: Writable Docker socket mount
+description: A maintenance service receives the host Docker control socket as a writable mount.
+config: |
+  services:
+    helper:
+      image: example/helper:2.1
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
+expected_findings:
+  - id: writable-docker-socket
+    severity: high
+    rationale: Docker socket control can effectively confer control over containers and the host.
+    remediation: Remove the mount or replace it with a narrowly scoped, authenticated intermediary.
+    validation: Verify required maintenance workflows through the replacement interface without socket access.
+human_review: Determine the exact control operations needed and approve any intermediary permissions.
+tags: [host-boundary, mounts]

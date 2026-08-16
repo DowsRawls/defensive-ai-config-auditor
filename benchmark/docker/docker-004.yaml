@@ -1,0 +1,16 @@
+id: docker-004
+domain: docker
+title: Restricted static service control
+description: A synthetic control already uses a non-root user and a read-only filesystem.
+config: |
+  services:
+    static:
+      image: example/static:1.4
+      user: "10001:10001"
+      read_only: true
+      cap_drop: ["ALL"]
+      tmpfs:
+        - /tmp:size=16m,noexec,nosuid
+expected_findings: []
+human_review: Confirm the image and runtime behavior match the synthetic assumptions before treating a real deployment as safe.
+tags: [control, least-privilege]

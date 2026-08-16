@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/defensive-ai-config-auditor/case.schema.json",
+  "title": "Defensive configuration benchmark case",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "domain", "title", "description", "config", "expected_findings", "human_review"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^[a-z]+-[0-9]{3}$"},
+    "domain": {"enum": ["docker", "nginx", "linux"]},
+    "title": {"type": "string", "minLength": 3},
+    "description": {"type": "string", "minLength": 10},
+    "config": {"type": "string", "minLength": 1},
+    "expected_findings": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/finding"}
+    },
+    "human_review": {"type": "string", "minLength": 10},
+    "tags": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+  },
+  "$defs": {
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "severity", "rationale", "remediation", "validation"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9-]+$"},
+        "severity": {"enum": ["low", "medium", "high"]},
+        "rationale": {"type": "string", "minLength": 10},
+        "remediation": {"type": "string", "minLength": 10},
+        "validation": {"type": "string", "minLength": 10}
+      }
+    }
+  }
+}

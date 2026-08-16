@@ -1,0 +1,16 @@
+id: linux-004
+domain: linux
+title: Restricted systemd service control
+description: A synthetic service control uses a dedicated identity and selected sandboxing directives.
+config: |
+  [Service]
+  User=example-api
+  Group=example-api
+  ExecStart=/usr/local/bin/example-api
+  NoNewPrivileges=yes
+  PrivateTmp=yes
+  ProtectSystem=strict
+  ReadWritePaths=/var/lib/example-api
+expected_findings: []
+human_review: Validate required resources and service behavior; this excerpt does not establish complete host security.
+tags: [control, systemd]

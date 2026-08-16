@@ -1,0 +1,18 @@
+id: linux-001
+domain: linux
+title: World-writable service configuration
+description: A system service reads configuration from a file writable by every local user.
+config: |
+  path: /etc/example-agent/config.yaml
+  owner: root
+  group: root
+  mode: "0666"
+  used_by: example-agent.service
+expected_findings:
+  - id: world-writable-service-config
+    severity: high
+    rationale: Unprivileged local users could alter configuration consumed by a privileged service.
+    remediation: Remove group and other write permissions and grant write access only to an approved administrator.
+    validation: Verify ownership and mode, then restart in isolation and confirm expected service behavior.
+human_review: Confirm the service identity and any legitimate configuration-management writer before changing access.
+tags: [permissions, integrity]

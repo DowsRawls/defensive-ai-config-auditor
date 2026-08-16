@@ -1,0 +1,18 @@
+id: nginx-001
+domain: nginx
+title: TLS server permits legacy protocols
+description: A synthetic HTTPS virtual host explicitly enables obsolete TLS protocol versions.
+config: |
+  server {
+    listen 443 ssl;
+    server_name example.invalid;
+    ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+  }
+expected_findings:
+  - id: legacy-tls-protocols
+    severity: high
+    rationale: TLS 1.0 and 1.1 are obsolete and weaken transport security expectations.
+    remediation: Permit organization-approved modern TLS versions, normally TLSv1.2 and TLSv1.3.
+    validation: Run nginx syntax checks and a protocol scanner against an isolated test endpoint.
+human_review: Confirm client compatibility requirements and the organization's current transport policy.
+tags: [tls, transport]

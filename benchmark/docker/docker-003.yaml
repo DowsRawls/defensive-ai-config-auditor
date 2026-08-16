@@ -1,0 +1,24 @@
+id: docker-003
+domain: docker
+title: Container runs as root with writable filesystem
+description: A stateless API has no user restriction and retains a writable root filesystem.
+config: |
+  services:
+    api:
+      image: example/api:3.0
+      read_only: false
+      tmpfs:
+        - /tmp
+expected_findings:
+  - id: root-user-default
+    severity: medium
+    rationale: An unspecified user commonly leaves the process running as root inside the container.
+    remediation: Set a verified non-root UID and GID compatible with required file access.
+    validation: Confirm startup, health checks, and required file operations as the selected user.
+  - id: writable-root-filesystem
+    severity: medium
+    rationale: A writable root filesystem increases the impact of application compromise or mistakes.
+    remediation: Set read_only to true and provide explicit writable temporary or data mounts only where needed.
+    validation: Exercise write paths and confirm writes are limited to declared mounts.
+human_review: Image ownership and legitimate runtime write paths must be inspected before applying both changes.
+tags: [least-privilege, filesystem]

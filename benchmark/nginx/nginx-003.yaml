@@ -1,0 +1,20 @@
+id: nginx-003
+domain: nginx
+title: Unbounded request body
+description: An upload endpoint lacks an explicit request body size limit in the supplied context.
+config: |
+  server {
+    listen 443 ssl;
+    server_name uploads.example.invalid;
+    location /upload {
+      proxy_pass http://upload_backend;
+    }
+  }
+expected_findings:
+  - id: request-body-limit-not-explicit
+    severity: medium
+    rationale: A missing explicit limit can permit unexpectedly large bodies and resource pressure.
+    remediation: Set client_max_body_size to the smallest value consistent with documented upload requirements.
+    validation: Check syntax and test requests just below and above the approved threshold.
+human_review: Inspect inherited global settings and product upload limits before selecting a value.
+tags: [availability, limits]

@@ -1,0 +1,16 @@
+id: linux-003
+domain: linux
+title: Password SSH login permitted for root
+description: A synthetic SSH daemon configuration explicitly permits direct root password authentication.
+config: |
+  PermitRootLogin yes
+  PasswordAuthentication yes
+  PubkeyAuthentication yes
+expected_findings:
+  - id: root-password-ssh-login
+    severity: high
+    rationale: Direct root password login weakens accountability and increases exposure of a privileged account.
+    remediation: Prohibit direct root login and use named accounts with approved authentication and audited elevation.
+    validation: Validate daemon syntax and confirm an authorized recovery path before reloading the service.
+human_review: Avoid lockout by verifying console access, named administrator accounts, and key enrollment first.
+tags: [ssh, authentication]

@@ -1,0 +1,14 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Defensive configuration benchmark case
+description: Human-readable companion to case.schema.json; the JSON schema is canonical.
+type: object
+required: [id, domain, title, description, config, expected_findings, human_review]
+properties:
+  id: {type: string, pattern: "^[a-z]+-[0-9]{3}$"}
+  domain: {enum: [docker, nginx, linux]}
+  title: {type: string}
+  description: {type: string}
+  config: {type: string}
+  expected_findings: {type: array}
+  human_review: {type: string}
+  tags: {type: array, items: {type: string}}

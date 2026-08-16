@@ -1,0 +1,14 @@
+[
+  {
+    "case_id": "docker-001",
+    "finding_ids": ["privileged-container"],
+    "remediation_valid": null,
+    "notes": "Format example only; not a reported experiment."
+  },
+  {
+    "case_id": "docker-004",
+    "finding_ids": [],
+    "remediation_valid": null,
+    "notes": "A control-case prediction."
+  }
+]

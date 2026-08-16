@@ -1,0 +1,18 @@
+id: docker-001
+domain: docker
+title: Privileged application container
+description: A web service is granted full host-like privileges without a documented need.
+config: |
+  services:
+    web:
+      image: example/web:1.0
+      privileged: true
+      ports: ["8080:8080"]
+expected_findings:
+  - id: privileged-container
+    severity: high
+    rationale: Privileged mode removes important container isolation boundaries.
+    remediation: Remove privileged mode and grant only individually justified capabilities if required.
+    validation: Start in isolation and run application health checks with the reduced privileges.
+human_review: Confirm whether any hardware or kernel feature is genuinely required before changing privileges.
+tags: [least-privilege, isolation]
