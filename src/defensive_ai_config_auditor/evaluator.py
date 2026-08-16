@@ -36,9 +36,45 @@ def validate_cases(root: Path, schema_path: Path) -> list[str]:
     return errors
 
 
+def validate_predictions(
+    predictions: Any,
+    schema_path: Path,
+    known_case_ids: set[str] | None = None,
+) -> list[str]:
+    """Validate prediction structure, uniqueness, and optional benchmark membership."""
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    validator = Draft202012Validator(schema)
+    errors: list[str] = []
+    for error in sorted(validator.iter_errors(predictions), key=lambda item: list(item.absolute_path)):
+        location = ".".join(str(part) for part in error.absolute_path) or "<root>"
+        errors.append(f"predictions:{location}: {error.message}")
+
+    if not isinstance(predictions, list):
+        return errors
+
+    seen: set[str] = set()
+    for index, prediction in enumerate(predictions):
+        if not isinstance(prediction, dict):
+            continue
+        case_id = prediction.get("case_id")
+        if not isinstance(case_id, str):
+            continue
+        if case_id in seen:
+            errors.append(f"predictions:{index}.case_id: duplicate case id {case_id}")
+        seen.add(case_id)
+        if known_case_ids is not None and case_id not in known_case_ids:
+            errors.append(f"predictions:{index}.case_id: unknown case id {case_id}")
+    return errors
+
+
 def evaluate(cases: list[dict[str, Any]], predictions: list[dict[str, Any]]) -> dict[str, Any]:
     expected = {case["id"]: {item["id"] for item in case["expected_findings"]} for case in cases}
-    supplied = {item["case_id"]: item for item in predictions}
+    supplied: dict[str, dict[str, Any]] = {}
+    for item in predictions:
+        case_id = item["case_id"]
+        if case_id in supplied:
+            raise ValueError(f"duplicate case id: {case_id}")
+        supplied[case_id] = item
     unknown = sorted(set(supplied) - set(expected))
     if unknown:
         raise ValueError(f"unknown case ids: {', '.join(unknown)}")
