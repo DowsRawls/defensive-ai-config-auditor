@@ -27,6 +27,8 @@ pytest
 
 The sample predictions are intentionally incomplete and exist only to demonstrate the file format. Their output is not a benchmark result.
 
+Prediction files are validated against `schemas/predictions.schema.json` before scoring. Duplicate case IDs, unknown benchmark IDs, duplicate finding IDs, and unexpected fields are rejected so malformed experiment output cannot silently alter reported metrics.
+
 ## Benchmark layout
 
 Each YAML case contains a configuration excerpt, expected defensive findings, acceptable remediation properties, and a human-review note. Cases with an empty `expected_findings` list are controls used to measure false positives.

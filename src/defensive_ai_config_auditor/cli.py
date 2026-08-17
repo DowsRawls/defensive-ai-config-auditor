@@ -4,7 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
-from .evaluator import evaluate, load_cases, validate_cases
+from .evaluator import evaluate, load_cases, validate_cases, validate_predictions
 
 
 def main() -> int:
@@ -16,6 +16,7 @@ def main() -> int:
     score = sub.add_parser("evaluate", help="score a predictions JSON file")
     score.add_argument("predictions", type=Path)
     score.add_argument("benchmark", type=Path)
+    score.add_argument("--schema", type=Path, default=Path("schemas/predictions.schema.json"))
     args = parser.parse_args()
 
     if args.command == "validate":
@@ -26,8 +27,17 @@ def main() -> int:
         print(f"Validated {len(load_cases(args.benchmark))} cases")
         return 0
 
-    predictions = json.loads(args.predictions.read_text(encoding="utf-8"))
-    print(json.dumps(evaluate(load_cases(args.benchmark), predictions), indent=2))
+    try:
+        predictions = json.loads(args.predictions.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"Could not read predictions: {exc}")
+        return 1
+    cases = load_cases(args.benchmark)
+    errors = validate_predictions(predictions, args.schema, {case["id"] for case in cases})
+    if errors:
+        print("\n".join(errors))
+        return 1
+    print(json.dumps(evaluate(cases, predictions), indent=2))
     return 0
 
 

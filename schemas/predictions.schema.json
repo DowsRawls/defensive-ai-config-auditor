@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/defensive-ai-config-auditor/predictions.schema.json",
+  "title": "Defensive configuration audit predictions",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["case_id", "finding_ids"],
+    "properties": {
+      "case_id": {"type": "string", "pattern": "^[a-z]+-[0-9]{3}$"},
+      "finding_ids": {
+        "type": "array",
+        "items": {"type": "string", "pattern": "^[a-z0-9-]+$"},
+        "uniqueItems": true
+      },
+      "remediation_valid": {"type": ["boolean", "null"]},
+      "notes": {"type": "string"}
+    }
+  }
+}
