@@ -1,0 +1,42 @@
+name: defensive-ai-config-auditor
+
+x-test-service: &test-service
+  working_dir: /app
+  read_only: true
+  tmpfs:
+    - /tmp
+    - /app/.pytest_cache
+  security_opt:
+    - no-new-privileges:true
+
+services:
+  test:
+    <<: *test-service
+    build:
+      context: .
+      args:
+        PYTHON_VERSION: 3.11.16-slim-trixie
+
+  test-py312:
+    <<: *test-service
+    profiles: [matrix]
+    build:
+      context: .
+      args:
+        PYTHON_VERSION: 3.12.14-slim-trixie
+
+  test-py313:
+    <<: *test-service
+    profiles: [matrix]
+    build:
+      context: .
+      args:
+        PYTHON_VERSION: 3.13.15-slim-trixie
+
+  test-py314:
+    <<: *test-service
+    profiles: [matrix]
+    build:
+      context: .
+      args:
+        PYTHON_VERSION: 3.14.7-slim-trixie

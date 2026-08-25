@@ -25,6 +25,16 @@ da-config-audit evaluate examples/predictions.json benchmark
 pytest
 ```
 
+### Docker
+
+For a reproducible test run without installing Python locally:
+
+```bash
+docker compose run --rm --build test
+```
+
+The Docker setup pins a Python 3.11 baseline and provides a compatibility matrix for Python 3.12, 3.13, and 3.14. See [reproducible testing](docs/testing.md) for the exact versions and commands.
+
 The sample predictions are intentionally incomplete and exist only to demonstrate the file format. Their output is not a benchmark result.
 
 Prediction files are validated against `schemas/predictions.schema.json` before scoring. Duplicate case IDs, unknown benchmark IDs, duplicate finding IDs, and unexpected fields are rejected so malformed experiment output cannot silently alter reported metrics.

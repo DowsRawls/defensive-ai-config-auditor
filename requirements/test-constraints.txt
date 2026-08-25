@@ -1,0 +1,5 @@
+# Reproducible direct dependencies for the Docker test environment.
+# Keep project compatibility ranges in pyproject.toml; update these pins deliberately.
+PyYAML==6.0.3
+jsonschema==4.26.0
+pytest==8.4.2

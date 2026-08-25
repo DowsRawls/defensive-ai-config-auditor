@@ -8,4 +8,6 @@ Contributions should improve defensive measurement, reproducibility, or document
 4. Add or update tests; run `da-config-audit validate benchmark` and `pytest`.
 5. Do not add exploit steps, live targets, weaponized payloads, or fabricated results.
 
+If Python is not installed locally, run `docker compose run --rm --build test`. Before changing package compatibility or cutting a release, run the complete Python version matrix documented in [docs/testing.md](docs/testing.md).
+
 Finding IDs should describe the condition rather than a product or model. Controls with no expected findings are welcome and important for false-positive measurement.
