@@ -27,7 +27,29 @@ docker compose run --rm --build \
   test da-config-audit analyze /input/config.yaml --domain docker
 ```
 
-The command prints JSON and returns exit code 0 when analysis completes, including when findings are present. Invalid, unreadable, or larger-than-1-MB input returns exit code 1.
+## CI and SARIF output
+
+JSON remains the default. Both `analyze` and `scan` can emit SARIF 2.1.0 for code-scanning systems:
+
+```bash
+da-config-audit analyze compose.yaml --domain docker --format sarif
+da-config-audit scan services --domain docker --pattern "**/compose*.yaml" --format sarif
+```
+
+Finding policy is opt-in, keeping interactive analysis advisory-only by default:
+
+```bash
+da-config-audit analyze compose.yaml --domain docker --fail-on high
+da-config-audit scan services --domain docker --pattern "**/compose*.yaml" --fail-on medium
+```
+
+Exit codes are stable for CI:
+
+- `0`: analysis completed and no enabled policy threshold was met;
+- `1`: input, parsing, or scan error (the scan report is still printed when individual files fail);
+- `2`: a finding met the explicit `--fail-on` severity threshold.
+
+SARIF locations identify files but not line numbers because the initial deterministic rules do not yet retain parser source positions. SARIF output and exit policy never modify configurations or apply remediations.
 
 ## Initial rule set
 
