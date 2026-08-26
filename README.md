@@ -35,6 +35,20 @@ docker compose run --rm --build test
 
 The Docker setup pins a Python 3.11 baseline and provides a compatibility matrix for Python 3.12, 3.13, and 3.14. See [reproducible testing](docs/testing.md) for the exact versions and commands.
 
+## Analyze a configuration
+
+Run transparent, deterministic checks on a local Docker Compose, Nginx, or SSH configuration:
+
+```bash
+da-config-audit analyze compose.yaml --domain docker
+da-config-audit analyze nginx.conf --domain nginx
+da-config-audit analyze sshd_config --domain linux
+da-config-audit scan services --domain docker --pattern "**/compose*.yaml"
+da-config-audit analyze compose.yaml --domain docker --format sarif --fail-on high
+```
+
+The analyzer emits advisory JSON or SARIF 2.1.0, never modifies the input, and does not call a model or access the network. Directory scans require an explicit domain and relative glob, are bounded, and report per-file failures without guessing file types. Findings return success by default; CI can opt into a distinct policy exit code with `--fail-on`. Its deliberately small rule set catches explicit high-confidence conditions; it is not a complete security scanner. See [analyzer documentation](docs/analyzer.md).
+
 The sample predictions are intentionally incomplete and exist only to demonstrate the file format. Their output is not a benchmark result.
 
 Prediction files are validated against `schemas/predictions.schema.json` before scoring. Duplicate case IDs, unknown benchmark IDs, duplicate finding IDs, and unexpected fields are rejected so malformed experiment output cannot silently alter reported metrics.
