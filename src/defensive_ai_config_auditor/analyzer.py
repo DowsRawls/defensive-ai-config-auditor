@@ -7,6 +7,7 @@ from typing import Any
 import yaml
 
 MAX_CONFIG_BYTES = 1_000_000
+MAX_SCAN_FILES = 1_000
 DOMAINS = ("docker", "nginx", "linux")
 
 
@@ -165,5 +166,68 @@ def analyze_file(path: Path, domain: str) -> dict[str, Any]:
         "domain": domain,
         "findings_count": len(findings),
         "findings": findings,
+        "advisory_only": True,
+    }
+
+
+def scan_directory(
+    root: Path,
+    domain: str,
+    pattern: str,
+    max_files: int = 100,
+) -> dict[str, Any]:
+    """Analyze a bounded, explicitly selected set of files below a directory."""
+    if domain not in DOMAINS:
+        raise AnalysisError(f"unsupported domain: {domain}")
+    if not 1 <= max_files <= MAX_SCAN_FILES:
+        raise AnalysisError(f"max_files must be between 1 and {MAX_SCAN_FILES}")
+    if not pattern or Path(pattern).is_absolute() or ".." in Path(pattern).parts:
+        raise AnalysisError("pattern must be a non-empty relative glob without '..'")
+    try:
+        if not root.is_dir():
+            raise AnalysisError("scan root must be a directory")
+        if root.is_symlink():
+            raise AnalysisError("scan root must not be a symbolic link")
+        resolved_root = root.resolve(strict=True)
+        candidates = sorted(
+            (path for path in root.glob(pattern) if path.is_file()),
+            key=lambda path: path.as_posix(),
+        )
+    except AnalysisError:
+        raise
+    except (OSError, ValueError) as exc:
+        raise AnalysisError(f"could not enumerate scan root: {exc}") from exc
+
+    if len(candidates) > max_files:
+        raise AnalysisError(
+            f"pattern matched {len(candidates)} files, exceeding max_files={max_files}"
+        )
+
+    reports: list[dict[str, Any]] = []
+    errors: list[dict[str, str]] = []
+    for path in candidates:
+        relative = path.relative_to(root).as_posix()
+        try:
+            resolved = path.resolve(strict=True)
+            resolved.relative_to(resolved_root)
+            if path.is_symlink():
+                raise AnalysisError("symbolic links are not scanned")
+            report = analyze_file(path, domain)
+        except (AnalysisError, OSError, ValueError) as exc:
+            errors.append({"file": relative, "error": str(exc)})
+            continue
+        report["file"] = relative
+        reports.append(report)
+
+    return {
+        "root": str(root),
+        "domain": domain,
+        "pattern": pattern,
+        "matched_files": len(candidates),
+        "analyzed_files": len(reports),
+        "failed_files": len(errors),
+        "findings_count": sum(report["findings_count"] for report in reports),
+        "reports": reports,
+        "errors": errors,
         "advisory_only": True,
     }

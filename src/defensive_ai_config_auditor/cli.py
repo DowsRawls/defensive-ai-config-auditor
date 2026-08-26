@@ -4,7 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
-from .analyzer import DOMAINS, AnalysisError, analyze_file
+from .analyzer import DOMAINS, AnalysisError, analyze_file, scan_directory
 from .evaluator import evaluate, load_cases, validate_cases, validate_predictions
 
 
@@ -14,6 +14,11 @@ def main() -> int:
     analyze = sub.add_parser("analyze", help="run deterministic defensive checks on a configuration")
     analyze.add_argument("config", type=Path)
     analyze.add_argument("--domain", choices=DOMAINS, required=True)
+    scan = sub.add_parser("scan", help="analyze an explicitly selected set of files below a directory")
+    scan.add_argument("root", type=Path)
+    scan.add_argument("--domain", choices=DOMAINS, required=True)
+    scan.add_argument("--pattern", required=True, help="relative glob, for example '**/compose*.yaml'")
+    scan.add_argument("--max-files", type=int, default=100)
     validate = sub.add_parser("validate", help="validate benchmark YAML files")
     validate.add_argument("benchmark", type=Path)
     validate.add_argument("--schema", type=Path, default=Path("schemas/case.schema.json"))
@@ -28,6 +33,15 @@ def main() -> int:
             result = analyze_file(args.config, args.domain)
         except AnalysisError as exc:
             print(f"Could not analyze configuration: {exc}")
+            return 1
+        print(json.dumps(result, indent=2))
+        return 0
+
+    if args.command == "scan":
+        try:
+            result = scan_directory(args.root, args.domain, args.pattern, args.max_files)
+        except AnalysisError as exc:
+            print(f"Could not scan directory: {exc}")
             return 1
         print(json.dumps(result, indent=2))
         return 0

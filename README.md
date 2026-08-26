@@ -43,9 +43,10 @@ Run transparent, deterministic checks on a local Docker Compose, Nginx, or SSH c
 da-config-audit analyze compose.yaml --domain docker
 da-config-audit analyze nginx.conf --domain nginx
 da-config-audit analyze sshd_config --domain linux
+da-config-audit scan services --domain docker --pattern "**/compose*.yaml"
 ```
 
-The analyzer emits advisory JSON, never modifies the input, and does not call a model or access the network. Its deliberately small rule set catches explicit high-confidence conditions; it is not a complete security scanner. See [analyzer documentation](docs/analyzer.md).
+The analyzer emits advisory JSON, never modifies the input, and does not call a model or access the network. Directory scans require an explicit domain and relative glob, are bounded, and report per-file failures without guessing file types. Its deliberately small rule set catches explicit high-confidence conditions; it is not a complete security scanner. See [analyzer documentation](docs/analyzer.md).
 
 The sample predictions are intentionally incomplete and exist only to demonstrate the file format. Their output is not a benchmark result.
 

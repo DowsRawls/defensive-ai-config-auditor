@@ -45,3 +45,28 @@ def test_analyze_cli_rejects_missing_file(tmp_path):
     )
     assert result.returncode == 1
     assert "Could not analyze configuration" in result.stdout
+
+
+def test_scan_cli_outputs_aggregate_json(tmp_path):
+    (tmp_path / "nginx.conf").write_text("autoindex on;\n", encoding="utf-8")
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "defensive_ai_config_auditor.cli",
+            "scan",
+            str(tmp_path),
+            "--domain",
+            "nginx",
+            "--pattern",
+            "*.conf",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    report = json.loads(result.stdout)
+    assert report["analyzed_files"] == 1
+    assert report["findings_count"] == 1
+    assert report["reports"][0]["file"] == "nginx.conf"

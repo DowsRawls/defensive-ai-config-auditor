@@ -10,6 +10,15 @@ da-config-audit analyze path/to/nginx.conf --domain nginx
 da-config-audit analyze path/to/sshd_config --domain linux
 ```
 
+Analyze an explicitly selected, bounded set of files below a directory:
+
+```bash
+da-config-audit scan services --domain docker --pattern "**/compose*.yaml"
+da-config-audit scan nginx --domain nginx --pattern "**/*.conf" --max-files 250
+```
+
+`scan` requires both a domain and a relative glob instead of guessing file types. It sorts matches for reproducible output, rejects parent traversal and symlink roots, limits a run to 100 files by default (1,000 maximum), and applies the per-file 1 MB limit. Invalid matched files are reported alongside successful results; nothing is modified.
+
 With the Docker test environment, explicitly mount only the file being reviewed:
 
 ```bash

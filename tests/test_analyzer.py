@@ -2,7 +2,12 @@ from pathlib import Path
 
 import pytest
 
-from defensive_ai_config_auditor.analyzer import AnalysisError, MAX_CONFIG_BYTES, analyze_file
+from defensive_ai_config_auditor.analyzer import (
+    AnalysisError,
+    MAX_CONFIG_BYTES,
+    analyze_file,
+    scan_directory,
+)
 
 
 def _analyze(tmp_path: Path, domain: str, content: str):
@@ -114,3 +119,51 @@ def test_rejects_unsupported_domain(tmp_path):
     config.write_text("test", encoding="utf-8")
     with pytest.raises(AnalysisError, match="unsupported domain"):
         analyze_file(config, "unknown")
+
+
+def test_scan_directory_is_bounded_sorted_and_aggregated(tmp_path):
+    nested = tmp_path / "nested"
+    nested.mkdir()
+    (nested / "compose-b.yaml").write_text(
+        "services:\n  app:\n    user: '1000'\n    read_only: true\n", encoding="utf-8"
+    )
+    (tmp_path / "compose-a.yaml").write_text(
+        "services:\n  app:\n    privileged: true\n    user: '1000'\n    read_only: true\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "ignored.yaml").write_text("services: {}\n", encoding="utf-8")
+
+    result = scan_directory(tmp_path, "docker", "**/compose-*.yaml", max_files=2)
+
+    assert result["matched_files"] == 2
+    assert result["analyzed_files"] == 2
+    assert result["failed_files"] == 0
+    assert result["findings_count"] == 1
+    assert [report["file"] for report in result["reports"]] == [
+        "compose-a.yaml",
+        "nested/compose-b.yaml",
+    ]
+
+
+def test_scan_directory_reports_invalid_files_without_hiding_valid_results(tmp_path):
+    (tmp_path / "compose-good.yaml").write_text("services: {}\n", encoding="utf-8")
+    (tmp_path / "compose-bad.yaml").write_text("services: [\n", encoding="utf-8")
+
+    result = scan_directory(tmp_path, "docker", "compose-*.yaml")
+
+    assert result["analyzed_files"] == 1
+    assert result["failed_files"] == 1
+    assert result["errors"][0]["file"] == "compose-bad.yaml"
+
+
+@pytest.mark.parametrize("pattern", ["", "../*.yaml"])
+def test_scan_directory_rejects_unsafe_patterns(tmp_path, pattern):
+    with pytest.raises(AnalysisError, match="relative glob"):
+        scan_directory(tmp_path, "docker", pattern)
+
+
+def test_scan_directory_enforces_file_limit(tmp_path):
+    for index in range(2):
+        (tmp_path / f"compose-{index}.yaml").write_text("services: {}\n", encoding="utf-8")
+    with pytest.raises(AnalysisError, match="exceeding max_files=1"):
+        scan_directory(tmp_path, "docker", "*.yaml", max_files=1)
