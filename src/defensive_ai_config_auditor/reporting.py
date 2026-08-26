@@ -7,7 +7,7 @@ SEVERITY_ORDER = {"low": 1, "medium": 2, "high": 3}
 SARIF_LEVEL = {"low": "note", "medium": "warning", "high": "error"}
 
 
-def iter_report_findings(report: dict[str, Any]) -> Iterator[tuple[str, str, dict[str, str]]]:
+def iter_report_findings(report: dict[str, Any]) -> Iterator[tuple[str, str, dict[str, Any]]]:
     """Yield domain, file, and finding from a single-file or directory report."""
     reports = report.get("reports")
     if isinstance(reports, list):
@@ -38,6 +38,23 @@ def meets_failure_threshold(report: dict[str, Any], threshold: str) -> bool:
     )
 
 
+def _sarif_locations(filename: str, finding: dict[str, Any]) -> list[dict[str, Any]]:
+    artifact = {"uri": filename.replace("\\", "/")}
+    raw_lines = finding.get("lines", [])
+    lines = sorted({line for line in raw_lines if isinstance(line, int) and line > 0})
+    if not lines:
+        return [{"physicalLocation": {"artifactLocation": artifact}}]
+    return [
+        {
+            "physicalLocation": {
+                "artifactLocation": artifact,
+                "region": {"startLine": line},
+            }
+        }
+        for line in lines
+    ]
+
+
 def to_sarif(report: dict[str, Any]) -> dict[str, Any]:
     findings = list(iter_report_findings(report))
     rules: dict[str, dict[str, Any]] = {}
@@ -64,13 +81,7 @@ def to_sarif(report: dict[str, Any]) -> dict[str, Any]:
                         f"Remediation: {finding.get('remediation', 'Human review required.')}"
                     )
                 },
-                "locations": [
-                    {
-                        "physicalLocation": {
-                            "artifactLocation": {"uri": filename.replace("\\", "/")}
-                        }
-                    }
-                ],
+                "locations": _sarif_locations(filename, finding),
                 "properties": {
                     "advisory_only": True,
                     "domain": domain,

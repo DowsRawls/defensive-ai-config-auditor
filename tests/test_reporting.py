@@ -7,6 +7,7 @@ def _scan_report():
         "severity": "medium",
         "evidence": "active directive: autoindex on;",
         "remediation": "Disable autoindex.",
+        "lines": [7],
     }
     return {
         "domain": "nginx",
@@ -37,6 +38,10 @@ def test_sarif_has_deduplicated_rules_results_and_input_errors():
         "a/nginx.conf",
         "b/nginx.conf",
     ]
+    assert [
+        result["locations"][0]["physicalLocation"]["region"]["startLine"]
+        for result in run["results"]
+    ] == [7, 7]
     assert all(result["level"] == "warning" for result in run["results"])
     assert run["invocations"][0]["executionSuccessful"] is False
     notification = run["invocations"][0]["toolExecutionNotifications"][0]
@@ -53,6 +58,7 @@ def test_sarif_single_file_high_severity_maps_to_error():
                 "severity": "high",
                 "evidence": "privileged: true in services: app",
                 "remediation": "Remove privileged mode.",
+                "lines": [8, 4],
             }
         ],
     }
@@ -61,3 +67,7 @@ def test_sarif_single_file_high_severity_maps_to_error():
     assert result["ruleId"] == "privileged-container"
     assert result["level"] == "error"
     assert result["properties"]["advisory_only"] is True
+    assert [
+        location["physicalLocation"]["region"]["startLine"]
+        for location in result["locations"]
+    ] == [4, 8]

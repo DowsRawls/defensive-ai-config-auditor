@@ -37,6 +37,11 @@ services:
         "root-user-default",
         "writable-root-filesystem",
     }
+    by_id = {finding["id"]: finding for finding in result["findings"]}
+    assert by_id["privileged-container"]["lines"] == [5]
+    assert by_id["root-user-default"]["lines"] == [6]
+    assert by_id["writable-root-filesystem"]["lines"] == [7]
+    assert by_id["writable-docker-socket"]["lines"] == [9]
     assert result["advisory_only"] is True
 
 
@@ -88,6 +93,9 @@ autoindex on;
         "legacy-tls-protocols",
         "directory-listing-enabled",
     }
+    by_id = {finding["id"]: finding for finding in result["findings"]}
+    assert by_id["legacy-tls-protocols"]["lines"] == [3]
+    assert by_id["directory-listing-enabled"]["lines"] == [4]
 
 
 def test_nginx_modern_tls_is_not_mistaken_for_tls_v1(tmp_path):
@@ -100,6 +108,7 @@ def test_linux_requires_root_and_password_login_together(tmp_path):
     assert safe["findings"] == []
     unsafe = _analyze(tmp_path, "linux", "PermitRootLogin yes\nPasswordAuthentication yes\n")
     assert [finding["id"] for finding in unsafe["findings"]] == ["root-password-ssh-login"]
+    assert unsafe["findings"][0]["lines"] == [1, 2]
 
 
 def test_rejects_invalid_docker_yaml(tmp_path):

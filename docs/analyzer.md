@@ -49,7 +49,7 @@ Exit codes are stable for CI:
 - `1`: input, parsing, or scan error (the scan report is still printed when individual files fail);
 - `2`: a finding met the explicit `--fail-on` severity threshold.
 
-SARIF locations identify files but not line numbers because the initial deterministic rules do not yet retain parser source positions. SARIF output and exit policy never modify configurations or apply remediations.
+JSON findings include sorted, deduplicated one-based source line numbers. SARIF locations carry the same `startLine` values so code-scanning interfaces can navigate directly to each matched directive or service setting. SARIF output and exit policy never modify configurations or apply remediations.
 
 ## Initial rule set
 
@@ -63,7 +63,7 @@ SARIF locations identify files but not line numbers because the initial determin
 | Nginx | `directory-listing-enabled` | An active directive enables `autoindex` |
 | Linux | `root-password-ssh-login` | Direct root login and password authentication are both enabled |
 
-Comments are excluded from Nginx and SSH matching. Docker Compose input is parsed with PyYAML safe loading. Output evidence is limited to service names and matched directive names; the analyzer does not echo the full configuration.
+Comments are excluded from Nginx and SSH matching. Docker Compose input is parsed with PyYAML safe loading, and source positions come from safe YAML node marks. Output evidence is limited to service names, matched directive names, and line numbers; the analyzer does not echo the full configuration.
 
 ## Limitations
 
