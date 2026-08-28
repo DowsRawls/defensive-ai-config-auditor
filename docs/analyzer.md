@@ -51,6 +51,12 @@ Exit codes are stable for CI:
 
 JSON findings include sorted, deduplicated one-based source line numbers. SARIF locations carry the same `startLine` values so code-scanning interfaces can navigate directly to each matched directive or service setting. SARIF output and exit policy never modify configurations or apply remediations.
 
+## Reviewed suppressions
+
+Both commands accept `--suppressions path/to/suppressions.json`. Each entry identifies an exact output `file` and `finding_id`, and requires a non-empty review reason plus an ISO `expires_on` date. See `examples/suppressions.json`.
+
+Suppressed findings remain in JSON and SARIF output with their justification and expiry; they are excluded only from `--fail-on`. Expired entries remain active findings, while the report marks the expired exception. The summary also exposes configured, applied, expired, and unmatched entry counts. This keeps exceptions reviewable and prevents an old waiver from silently hiding risk.
+
 ## Initial rule set
 
 | Domain | Finding ID | Condition |

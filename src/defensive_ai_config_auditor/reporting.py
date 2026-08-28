@@ -35,6 +35,7 @@ def meets_failure_threshold(report: dict[str, Any], threshold: str) -> bool:
     return any(
         SEVERITY_ORDER.get(str(finding.get("severity")), 0) >= minimum
         for _, _, finding in iter_report_findings(report)
+        if "suppression" not in finding
     )
 
 
@@ -86,9 +87,21 @@ def to_sarif(report: dict[str, Any]) -> dict[str, Any]:
                     "advisory_only": True,
                     "domain": domain,
                     "severity": severity,
+                    "suppressed": "suppression" in finding,
                 },
             }
         )
+        suppression = finding.get("suppression")
+        if isinstance(suppression, dict):
+            results[-1]["suppressions"] = [
+                {
+                    "kind": "external",
+                    "justification": str(suppression.get("reason", "Reviewed exception")),
+                }
+            ]
+            results[-1]["properties"]["suppression_expires_on"] = str(
+                suppression.get("expires_on", "")
+            )
 
     errors = report.get("errors", []) if isinstance(report.get("errors"), list) else []
     notifications = [

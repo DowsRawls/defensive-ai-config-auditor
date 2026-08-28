@@ -124,3 +124,32 @@ def test_scan_cli_returns_input_error_after_printing_report(tmp_path):
     report = json.loads(result.stdout)
     assert report["analyzed_files"] == 1
     assert report["failed_files"] == 1
+
+
+def test_scan_cli_applies_reviewed_suppression(tmp_path):
+    (tmp_path / "nginx.conf").write_text("autoindex on;\n", encoding="utf-8")
+    suppressions = tmp_path / "suppressions.json"
+    suppressions.write_text(json.dumps({
+        "version": 1,
+        "suppressions": [{
+            "finding_id": "directory-listing-enabled",
+            "file": "nginx.conf",
+            "reason": "Reviewed fixture",
+            "expires_on": "2099-01-01",
+        }],
+    }), encoding="utf-8")
+    result = subprocess.run(
+        [
+            sys.executable, "-m", "defensive_ai_config_auditor.cli", "scan",
+            str(tmp_path), "--domain", "nginx", "--pattern", "*.conf",
+            "--suppressions", str(suppressions), "--fail-on", "medium",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    report = json.loads(result.stdout)
+    assert report["findings_count"] == 1
+    assert report["suppressed_findings_count"] == 1
