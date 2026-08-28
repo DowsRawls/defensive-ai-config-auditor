@@ -28,7 +28,11 @@ def iter_report_findings(report: dict[str, Any]) -> Iterator[tuple[str, str, dic
             yield domain, filename, finding
 
 
-def meets_failure_threshold(report: dict[str, Any], threshold: str) -> bool:
+def meets_failure_threshold(
+    report: dict[str, Any],
+    threshold: str,
+    only_new: bool = False,
+) -> bool:
     if threshold == "none":
         return False
     minimum = SEVERITY_ORDER[threshold]
@@ -36,6 +40,7 @@ def meets_failure_threshold(report: dict[str, Any], threshold: str) -> bool:
         SEVERITY_ORDER.get(str(finding.get("severity")), 0) >= minimum
         for _, _, finding in iter_report_findings(report)
         if "suppression" not in finding
+        if not only_new or finding.get("baseline_state") == "new"
     )
 
 
@@ -102,6 +107,9 @@ def to_sarif(report: dict[str, Any]) -> dict[str, Any]:
             results[-1]["properties"]["suppression_expires_on"] = str(
                 suppression.get("expires_on", "")
             )
+        baseline_state = finding.get("baseline_state")
+        if baseline_state in {"new", "unchanged"}:
+            results[-1]["baselineState"] = baseline_state
 
     errors = report.get("errors", []) if isinstance(report.get("errors"), list) else []
     notifications = [

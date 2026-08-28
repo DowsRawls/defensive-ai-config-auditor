@@ -153,3 +153,34 @@ def test_scan_cli_applies_reviewed_suppression(tmp_path):
     report = json.loads(result.stdout)
     assert report["findings_count"] == 1
     assert report["suppressed_findings_count"] == 1
+
+
+def test_scan_cli_baseline_gates_only_new_findings(tmp_path):
+    (tmp_path / "nginx.conf").write_text("autoindex on;\n", encoding="utf-8")
+    baseline = tmp_path / "baseline.json"
+    baseline.write_text(json.dumps({
+        "root": str(tmp_path),
+        "domain": "nginx",
+        "pattern": "*.conf",
+        "reports": [{
+            "file": "nginx.conf",
+            "domain": "nginx",
+            "findings": [{"id": "directory-listing-enabled"}],
+        }],
+    }), encoding="utf-8")
+    result = subprocess.run(
+        [
+            sys.executable, "-m", "defensive_ai_config_auditor.cli", "scan",
+            str(tmp_path), "--domain", "nginx", "--pattern", "*.conf",
+            "--baseline", str(baseline), "--fail-on", "medium",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    report = json.loads(result.stdout)
+    assert report["baseline"]["new_findings_count"] == 0
+    assert report["baseline"]["unchanged_findings_count"] == 1
+    assert report["reports"][0]["findings"][0]["baseline_state"] == "unchanged"
