@@ -12,8 +12,8 @@ def _scan_report():
     return {
         "domain": "nginx",
         "reports": [
-            {"file": "a/nginx.conf", "domain": "nginx", "findings": [finding]},
-            {"file": "b/nginx.conf", "domain": "nginx", "findings": [finding]},
+            {"file": "a/nginx.conf", "domain": "nginx", "findings": [finding.copy()]},
+            {"file": "b/nginx.conf", "domain": "nginx", "findings": [finding.copy()]},
         ],
         "errors": [{"file": "bad/nginx.conf", "error": "could not read configuration"}],
         "advisory_only": True,
@@ -26,6 +26,19 @@ def test_failure_threshold_is_explicit_and_severity_aware():
     assert meets_failure_threshold(report, "low") is True
     assert meets_failure_threshold(report, "medium") is True
     assert meets_failure_threshold(report, "high") is False
+
+
+def test_failure_threshold_can_consider_only_new_unsuppressed_findings():
+    report = _scan_report()
+    report["reports"][0]["findings"][0]["baseline_state"] = "unchanged"
+    report["reports"][1]["findings"][0]["baseline_state"] = "new"
+    report["reports"][1]["findings"][0]["suppression"] = {
+        "reason": "Reviewed", "expires_on": "2099-01-01"
+    }
+
+    assert meets_failure_threshold(report, "medium", only_new=True) is False
+    results = to_sarif(report)["runs"][0]["results"]
+    assert [result["baselineState"] for result in results] == ["unchanged", "new"]
 
 
 def test_sarif_has_deduplicated_rules_results_and_input_errors():

@@ -51,6 +51,18 @@ Exit codes are stable for CI:
 
 JSON findings include sorted, deduplicated one-based source line numbers. SARIF locations carry the same `startLine` values so code-scanning interfaces can navigate directly to each matched directive or service setting. SARIF output and exit policy never modify configurations or apply remediations.
 
+## Reviewed suppressions
+
+Both commands accept `--suppressions path/to/suppressions.json`. Each entry identifies an exact output `file` and `finding_id`, and requires a non-empty review reason plus an ISO `expires_on` date. See `examples/suppressions.json`.
+
+Suppressed findings remain in JSON and SARIF output with their justification and expiry; they are excluded only from `--fail-on`. Expired entries remain active findings, while the report marks the expired exception. The summary also exposes configured, applied, expired, and unmatched entry counts. This keeps exceptions reviewable and prevents an old waiver from silently hiding risk.
+
+## Baseline comparison
+
+Pass a previous JSON analyzer report with `--baseline previous-report.json`. Current findings are marked `new` or `unchanged`, and the report lists baseline findings that are now resolved. Identity uses domain, exact output file, and finding ID; line movement alone does not create a new finding. The command rejects a different domain, report type, scan pattern, or single-file target instead of comparing unrelated scopes.
+
+When a baseline is present, `--fail-on` applies only to new, unsuppressed findings. This lets CI adopt the auditor without accepting new risk while existing findings are remediated. The baseline is bounded to 10 MB and 10,000 findings, parsed as data only, and never modifies either configuration.
+
 ## Initial rule set
 
 | Domain | Finding ID | Condition |

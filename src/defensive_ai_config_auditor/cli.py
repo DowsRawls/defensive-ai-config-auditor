@@ -5,8 +5,10 @@ import json
 from pathlib import Path
 
 from .analyzer import DOMAINS, AnalysisError, analyze_file, scan_directory
+from .baseline import BaselineError, apply_baseline, load_baseline
 from .evaluator import evaluate, load_cases, validate_cases, validate_predictions
 from .reporting import meets_failure_threshold, to_sarif
+from .suppressions import SuppressionError, apply_suppressions, load_suppressions
 
 
 def _add_output_options(parser: argparse.ArgumentParser) -> None:
@@ -17,6 +19,26 @@ def _add_output_options(parser: argparse.ArgumentParser) -> None:
         default="none",
         help="return exit code 2 when a finding meets this severity threshold",
     )
+    parser.add_argument(
+        "--suppressions",
+        type=Path,
+        help="JSON file of reviewed, time-limited finding suppressions",
+    )
+    parser.add_argument(
+        "--baseline",
+        type=Path,
+        help="previous JSON report; --fail-on then applies only to new findings",
+    )
+
+
+def _apply_requested_suppressions(report: dict, path: Path | None) -> None:
+    if path is not None:
+        apply_suppressions(report, load_suppressions(path))
+
+
+def _apply_requested_baseline(report: dict, path: Path | None) -> None:
+    if path is not None:
+        apply_baseline(report, load_baseline(path), str(path))
 
 
 def _print_report(report: dict, output_format: str) -> None:
@@ -49,22 +71,26 @@ def main() -> int:
     if args.command == "analyze":
         try:
             result = analyze_file(args.config, args.domain)
-        except AnalysisError as exc:
+            _apply_requested_suppressions(result, args.suppressions)
+            _apply_requested_baseline(result, args.baseline)
+        except (AnalysisError, SuppressionError, BaselineError) as exc:
             print(f"Could not analyze configuration: {exc}")
             return 1
         _print_report(result, args.format)
-        return 2 if meets_failure_threshold(result, args.fail_on) else 0
+        return 2 if meets_failure_threshold(result, args.fail_on, args.baseline is not None) else 0
 
     if args.command == "scan":
         try:
             result = scan_directory(args.root, args.domain, args.pattern, args.max_files)
-        except AnalysisError as exc:
+            _apply_requested_suppressions(result, args.suppressions)
+            _apply_requested_baseline(result, args.baseline)
+        except (AnalysisError, SuppressionError, BaselineError) as exc:
             print(f"Could not scan directory: {exc}")
             return 1
         _print_report(result, args.format)
         if result["failed_files"]:
             return 1
-        return 2 if meets_failure_threshold(result, args.fail_on) else 0
+        return 2 if meets_failure_threshold(result, args.fail_on, args.baseline is not None) else 0
 
     if args.command == "validate":
         errors = validate_cases(args.benchmark, args.schema)

@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "suppressions": [
+    {
+      "finding_id": "directory-listing-enabled",
+      "file": "nginx/public.conf",
+      "reason": "Reviewed requirement for the public artifact mirror",
+      "expires_on": "2026-12-31"
+    }
+  ]
+}
