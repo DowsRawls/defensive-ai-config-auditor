@@ -8,10 +8,16 @@ from .analyzer import DOMAINS, AnalysisError, analyze_file, scan_directory
 from .baseline import BaselineError, apply_baseline, load_baseline
 from .evaluator import evaluate, load_cases, validate_cases, validate_predictions
 from .reporting import meets_failure_threshold, to_sarif
+from .rules import rules_report
 from .suppressions import SuppressionError, apply_suppressions, load_suppressions
 
 
 def _add_output_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--rule",
+        action="append",
+        help="enable only this rule ID; repeat to enable multiple rules",
+    )
     parser.add_argument("--format", choices=("json", "sarif"), default="json")
     parser.add_argument(
         "--fail-on",
@@ -49,6 +55,7 @@ def _print_report(report: dict, output_format: str) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Analyze configurations and evaluate benchmark results")
     sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser("rules", help="list deterministic analyzer rules as JSON")
     analyze = sub.add_parser("analyze", help="run deterministic defensive checks on a configuration")
     analyze.add_argument("config", type=Path)
     analyze.add_argument("--domain", choices=DOMAINS, required=True)
@@ -68,9 +75,13 @@ def main() -> int:
     score.add_argument("--schema", type=Path, default=Path("schemas/predictions.schema.json"))
     args = parser.parse_args()
 
+    if args.command == "rules":
+        print(json.dumps(rules_report(), indent=2))
+        return 0
+
     if args.command == "analyze":
         try:
-            result = analyze_file(args.config, args.domain)
+            result = analyze_file(args.config, args.domain, args.rule)
             _apply_requested_suppressions(result, args.suppressions)
             _apply_requested_baseline(result, args.baseline)
         except (AnalysisError, SuppressionError, BaselineError) as exc:
@@ -81,7 +92,9 @@ def main() -> int:
 
     if args.command == "scan":
         try:
-            result = scan_directory(args.root, args.domain, args.pattern, args.max_files)
+            result = scan_directory(
+                args.root, args.domain, args.pattern, args.max_files, args.rule
+            )
             _apply_requested_suppressions(result, args.suppressions)
             _apply_requested_baseline(result, args.baseline)
         except (AnalysisError, SuppressionError, BaselineError) as exc:

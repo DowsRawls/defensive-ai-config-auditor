@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from .reporting import iter_report_findings
+from .rules import rules_for_domain
 
 MAX_BASELINE_BYTES = 10_000_000
 MAX_BASELINE_FINDINGS = 10_000
@@ -50,6 +51,12 @@ def _validate_report(report: object) -> dict[str, Any]:
     findings = list(iter_report_findings(report))
     if len(findings) > MAX_BASELINE_FINDINGS:
         raise BaselineError(f"baseline exceeds {MAX_BASELINE_FINDINGS} findings")
+    enabled_rules = report.get("enabled_rules")
+    if enabled_rules is not None and (
+        not isinstance(enabled_rules, list)
+        or any(not isinstance(rule_id, str) or not rule_id for rule_id in enabled_rules)
+    ):
+        raise BaselineError("baseline enabled_rules must be a list of non-empty strings")
     return report
 
 
@@ -63,6 +70,13 @@ def load_baseline(path: Path) -> dict[str, Any]:
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise BaselineError(f"could not read baseline: {exc}") from exc
     return _validate_report(report)
+
+
+def _rule_scope(report: dict[str, Any]) -> tuple[str, ...]:
+    enabled_rules = report.get("enabled_rules")
+    if enabled_rules is None:
+        return rules_for_domain(str(report.get("domain", "")))
+    return tuple(sorted(enabled_rules))
 
 
 def apply_baseline(
@@ -81,6 +95,8 @@ def apply_baseline(
         raise BaselineError("baseline pattern does not match the current scan")
     if not current_is_scan and report.get("file") != baseline.get("file"):
         raise BaselineError("baseline file does not match the current analysis")
+    if _rule_scope(report) != _rule_scope(baseline):
+        raise BaselineError("baseline enabled rule set does not match the current report")
 
     baseline_keys = {
         _finding_key(domain, filename, finding)

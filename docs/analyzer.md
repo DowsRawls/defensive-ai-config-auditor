@@ -2,6 +2,14 @@
 
 The `analyze` command performs a small set of transparent defensive checks on one local configuration file. It does not call an AI service, access the network, execute the configuration, or modify the input.
 
+Inspect the complete machine-readable catalog before configuring integrations:
+
+```bash
+da-config-audit rules
+```
+
+The catalog is versioned and sorted deterministically. It exposes each stable rule ID, domain, severity, description, and remediation guidance, and remains advisory-only.
+
 ## Usage
 
 ```bash
@@ -9,6 +17,14 @@ da-config-audit analyze path/to/config --domain docker
 da-config-audit analyze path/to/nginx.conf --domain nginx
 da-config-audit analyze path/to/sshd_config --domain linux
 ```
+
+Run only an explicitly reviewed rule allowlist by repeating `--rule`:
+
+```bash
+da-config-audit scan services --domain docker --pattern "**/compose*.yaml" --rule privileged-container --rule writable-docker-socket
+```
+
+Unknown, duplicate, empty, and cross-domain selections fail closed. JSON reports record `ruleset_version` and the sorted `enabled_rules`; baseline comparison rejects a different enabled set. Omitting `--rule` enables every cataloged rule for the selected domain.
 
 Analyze an explicitly selected, bounded set of files below a directory:
 

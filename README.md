@@ -40,16 +40,22 @@ The Docker setup pins a Python 3.11 baseline and provides a compatibility matrix
 Run transparent, deterministic checks on a local Docker Compose, Nginx, or SSH configuration:
 
 ```bash
+da-config-audit rules
 da-config-audit analyze compose.yaml --domain docker
 da-config-audit analyze nginx.conf --domain nginx
 da-config-audit analyze sshd_config --domain linux
 da-config-audit scan services --domain docker --pattern "**/compose*.yaml"
+da-config-audit scan services --domain docker --pattern "**/compose*.yaml" --rule privileged-container
 da-config-audit analyze compose.yaml --domain docker --format sarif --fail-on high
 da-config-audit scan nginx --domain nginx --pattern "**/*.conf" --suppressions suppressions.json
 da-config-audit scan services --domain docker --pattern "**/compose*.yaml" --baseline previous.json --fail-on high
 ```
 
 The analyzer emits advisory JSON or SARIF 2.1.0, never modifies the input, and does not call a model or access the network. Directory scans require an explicit domain and relative glob, are bounded, and report per-file failures without guessing file types. Findings return success by default; CI can opt into a distinct policy exit code with `--fail-on`. Reviewed exceptions can be supplied as exact, reasoned, time-limited suppressions; findings remain visible and expired exceptions do not disable policy. A previous JSON report can serve as a bounded baseline so policy gates only new findings while still reporting unchanged and resolved items. Its deliberately small rule set catches explicit high-confidence conditions; it is not a complete security scanner. See [analyzer documentation](docs/analyzer.md).
+
+`da-config-audit rules` emits the complete versioned rule catalog as JSON, including stable IDs, domains, severities, descriptions, and remediation guidance.
+
+Repeat `--rule ID` to run an explicit allowlist. Unknown, duplicate, or cross-domain IDs are rejected, and reports record the exact enabled set so baseline comparisons cannot silently mix different scopes.
 
 The sample predictions are intentionally incomplete and exist only to demonstrate the file format. Their output is not a benchmark result.
 

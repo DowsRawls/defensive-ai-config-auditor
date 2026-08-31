@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence
 
 import yaml
 from yaml.nodes import MappingNode, Node, SequenceNode
+
+from .rules import RULESET_VERSION, get_rule, rules_for_domain
 
 MAX_CONFIG_BYTES = 1_000_000
 MAX_SCAN_FILES = 1_000
@@ -18,16 +20,15 @@ class AnalysisError(ValueError):
 
 def _finding(
     finding_id: str,
-    severity: str,
     evidence: str,
-    remediation: str,
     lines: list[int],
 ) -> dict[str, Any]:
+    rule = get_rule(finding_id)
     finding: dict[str, Any] = {
         "id": finding_id,
-        "severity": severity,
+        "severity": rule["severity"],
         "evidence": evidence,
-        "remediation": remediation,
+        "remediation": rule["remediation"],
     }
     finding["lines"] = sorted(set(lines))
     return finding
@@ -137,33 +138,25 @@ def _analyze_docker(text: str) -> list[dict[str, Any]]:
     if privileged:
         findings.append(_finding(
             "privileged-container",
-            "high",
             f"privileged: true in services: {', '.join(privileged)}",
-            "Remove privileged mode and grant only individually justified capabilities.",
             privileged_lines,
         ))
     if socket_writable:
         findings.append(_finding(
             "writable-docker-socket",
-            "high",
             f"writable Docker socket in services: {', '.join(sorted(set(socket_writable)))}",
-            "Remove the socket mount or use a narrowly scoped authenticated intermediary.",
             socket_lines,
         ))
     if root_default:
         findings.append(_finding(
             "root-user-default",
-            "medium",
             f"root or no explicit user in services: {', '.join(root_default)}",
-            "Set a verified non-root UID and GID compatible with required file access.",
             root_lines,
         ))
     if writable_root:
         findings.append(_finding(
             "writable-root-filesystem",
-            "medium",
             f"read_only is not true in services: {', '.join(writable_root)}",
-            "Set read_only to true and declare only the required writable mounts.",
             writable_root_lines,
         ))
     return findings
@@ -190,18 +183,14 @@ def _analyze_nginx(text: str) -> list[dict[str, Any]]:
     if legacy:
         findings.append(_finding(
             "legacy-tls-protocols",
-            "high",
             f"ssl_protocols enables: {', '.join(legacy)}",
-            "Permit organization-approved modern TLS versions, normally TLSv1.2 and TLSv1.3.",
             legacy_lines,
         ))
     autoindex = list(re.finditer(r"(?im)^[ \t]*autoindex[ \t]+on[ \t]*;", active))
     if autoindex:
         findings.append(_finding(
             "directory-listing-enabled",
-            "medium",
             "active directive: autoindex on;",
-            "Disable autoindex unless directory browsing is an explicit reviewed requirement.",
             [_match_line(active, match) for match in autoindex],
         ))
     return findings
@@ -215,27 +204,51 @@ def _analyze_linux(text: str) -> list[dict[str, Any]]:
     if root_login and password_login:
         findings.append(_finding(
             "root-password-ssh-login",
-            "high",
             "PermitRootLogin yes and PasswordAuthentication yes are both active",
-            "Prohibit direct root login and use named accounts with audited elevation.",
             [_match_line(active, root_login), _match_line(active, password_login)],
         ))
     return findings
 
 
-def analyze_file(path: Path, domain: str) -> dict[str, Any]:
+def _resolve_rules(domain: str, selected_rules: Sequence[str] | None) -> tuple[str, ...]:
+    available = rules_for_domain(domain)
+    if selected_rules is None:
+        return available
+    if not selected_rules:
+        raise AnalysisError("at least one --rule is required for explicit rule selection")
+    duplicates = sorted({rule_id for rule_id in selected_rules if selected_rules.count(rule_id) > 1})
+    if duplicates:
+        raise AnalysisError(f"duplicate rule IDs: {', '.join(duplicates)}")
+    unknown = sorted(set(selected_rules) - set(available))
+    if unknown:
+        raise AnalysisError(
+            f"rules are not available for domain {domain}: {', '.join(unknown)}"
+        )
+    return tuple(sorted(selected_rules))
+
+
+def analyze_file(
+    path: Path,
+    domain: str,
+    selected_rules: Sequence[str] | None = None,
+) -> dict[str, Any]:
     if domain not in DOMAINS:
         raise AnalysisError(f"unsupported domain: {domain}")
+    enabled_rules = _resolve_rules(domain, selected_rules)
     text = _read_config(path)
     analyzers = {
         "docker": _analyze_docker,
         "nginx": _analyze_nginx,
         "linux": _analyze_linux,
     }
-    findings = analyzers[domain](text)
+    findings = [
+        finding for finding in analyzers[domain](text) if finding["id"] in enabled_rules
+    ]
     return {
         "file": str(path),
         "domain": domain,
+        "ruleset_version": RULESET_VERSION,
+        "enabled_rules": list(enabled_rules),
         "findings_count": len(findings),
         "findings": findings,
         "advisory_only": True,
@@ -247,10 +260,12 @@ def scan_directory(
     domain: str,
     pattern: str,
     max_files: int = 100,
+    selected_rules: Sequence[str] | None = None,
 ) -> dict[str, Any]:
     """Analyze a bounded, explicitly selected set of files below a directory."""
     if domain not in DOMAINS:
         raise AnalysisError(f"unsupported domain: {domain}")
+    enabled_rules = _resolve_rules(domain, selected_rules)
     if not 1 <= max_files <= MAX_SCAN_FILES:
         raise AnalysisError(f"max_files must be between 1 and {MAX_SCAN_FILES}")
     if not pattern or Path(pattern).is_absolute() or ".." in Path(pattern).parts:
@@ -284,7 +299,7 @@ def scan_directory(
             resolved.relative_to(resolved_root)
             if path.is_symlink():
                 raise AnalysisError("symbolic links are not scanned")
-            report = analyze_file(path, domain)
+            report = analyze_file(path, domain, enabled_rules)
         except (AnalysisError, OSError, ValueError) as exc:
             errors.append({"file": relative, "error": str(exc)})
             continue
@@ -294,6 +309,8 @@ def scan_directory(
     return {
         "root": str(root),
         "domain": domain,
+        "ruleset_version": RULESET_VERSION,
+        "enabled_rules": list(enabled_rules),
         "pattern": pattern,
         "matched_files": len(candidates),
         "analyzed_files": len(reports),
