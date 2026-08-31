@@ -13,6 +13,11 @@ from .suppressions import SuppressionError, apply_suppressions, load_suppression
 
 
 def _add_output_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--rule",
+        action="append",
+        help="enable only this rule ID; repeat to enable multiple rules",
+    )
     parser.add_argument("--format", choices=("json", "sarif"), default="json")
     parser.add_argument(
         "--fail-on",
@@ -76,7 +81,7 @@ def main() -> int:
 
     if args.command == "analyze":
         try:
-            result = analyze_file(args.config, args.domain)
+            result = analyze_file(args.config, args.domain, args.rule)
             _apply_requested_suppressions(result, args.suppressions)
             _apply_requested_baseline(result, args.baseline)
         except (AnalysisError, SuppressionError, BaselineError) as exc:
@@ -87,7 +92,9 @@ def main() -> int:
 
     if args.command == "scan":
         try:
-            result = scan_directory(args.root, args.domain, args.pattern, args.max_files)
+            result = scan_directory(
+                args.root, args.domain, args.pattern, args.max_files, args.rule
+            )
             _apply_requested_suppressions(result, args.suppressions)
             _apply_requested_baseline(result, args.baseline)
         except (AnalysisError, SuppressionError, BaselineError) as exc:

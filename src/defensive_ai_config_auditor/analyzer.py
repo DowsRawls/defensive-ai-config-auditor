@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence
 
 import yaml
 from yaml.nodes import MappingNode, Node, SequenceNode
 
-from .rules import get_rule
+from .rules import RULESET_VERSION, get_rule, rules_for_domain
 
 MAX_CONFIG_BYTES = 1_000_000
 MAX_SCAN_FILES = 1_000
@@ -210,19 +210,45 @@ def _analyze_linux(text: str) -> list[dict[str, Any]]:
     return findings
 
 
-def analyze_file(path: Path, domain: str) -> dict[str, Any]:
+def _resolve_rules(domain: str, selected_rules: Sequence[str] | None) -> tuple[str, ...]:
+    available = rules_for_domain(domain)
+    if selected_rules is None:
+        return available
+    if not selected_rules:
+        raise AnalysisError("at least one --rule is required for explicit rule selection")
+    duplicates = sorted({rule_id for rule_id in selected_rules if selected_rules.count(rule_id) > 1})
+    if duplicates:
+        raise AnalysisError(f"duplicate rule IDs: {', '.join(duplicates)}")
+    unknown = sorted(set(selected_rules) - set(available))
+    if unknown:
+        raise AnalysisError(
+            f"rules are not available for domain {domain}: {', '.join(unknown)}"
+        )
+    return tuple(sorted(selected_rules))
+
+
+def analyze_file(
+    path: Path,
+    domain: str,
+    selected_rules: Sequence[str] | None = None,
+) -> dict[str, Any]:
     if domain not in DOMAINS:
         raise AnalysisError(f"unsupported domain: {domain}")
+    enabled_rules = _resolve_rules(domain, selected_rules)
     text = _read_config(path)
     analyzers = {
         "docker": _analyze_docker,
         "nginx": _analyze_nginx,
         "linux": _analyze_linux,
     }
-    findings = analyzers[domain](text)
+    findings = [
+        finding for finding in analyzers[domain](text) if finding["id"] in enabled_rules
+    ]
     return {
         "file": str(path),
         "domain": domain,
+        "ruleset_version": RULESET_VERSION,
+        "enabled_rules": list(enabled_rules),
         "findings_count": len(findings),
         "findings": findings,
         "advisory_only": True,
@@ -234,10 +260,12 @@ def scan_directory(
     domain: str,
     pattern: str,
     max_files: int = 100,
+    selected_rules: Sequence[str] | None = None,
 ) -> dict[str, Any]:
     """Analyze a bounded, explicitly selected set of files below a directory."""
     if domain not in DOMAINS:
         raise AnalysisError(f"unsupported domain: {domain}")
+    enabled_rules = _resolve_rules(domain, selected_rules)
     if not 1 <= max_files <= MAX_SCAN_FILES:
         raise AnalysisError(f"max_files must be between 1 and {MAX_SCAN_FILES}")
     if not pattern or Path(pattern).is_absolute() or ".." in Path(pattern).parts:
@@ -271,7 +299,7 @@ def scan_directory(
             resolved.relative_to(resolved_root)
             if path.is_symlink():
                 raise AnalysisError("symbolic links are not scanned")
-            report = analyze_file(path, domain)
+            report = analyze_file(path, domain, enabled_rules)
         except (AnalysisError, OSError, ValueError) as exc:
             errors.append({"file": relative, "error": str(exc)})
             continue
@@ -281,6 +309,8 @@ def scan_directory(
     return {
         "root": str(root),
         "domain": domain,
+        "ruleset_version": RULESET_VERSION,
+        "enabled_rules": list(enabled_rules),
         "pattern": pattern,
         "matched_files": len(candidates),
         "analyzed_files": len(reports),

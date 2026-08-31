@@ -49,3 +49,13 @@ def test_mismatched_scan_scope_is_rejected():
 
     with pytest.raises(BaselineError, match="pattern"):
         apply_baseline(current, baseline, "baseline.json")
+
+
+def test_mismatched_rule_scope_is_rejected():
+    current = _report("nginx.conf", ["old"])
+    current["enabled_rules"] = ["directory-listing-enabled"]
+    baseline = _report("nginx.conf", ["old"])
+    baseline["enabled_rules"] = ["legacy-tls-protocols"]
+
+    with pytest.raises(BaselineError, match="enabled rule set"):
+        apply_baseline(current, baseline, "baseline.json")

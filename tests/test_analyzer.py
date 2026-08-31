@@ -130,6 +130,35 @@ def test_rejects_unsupported_domain(tmp_path):
         analyze_file(config, "unknown")
 
 
+def test_explicit_rule_selection_filters_and_records_scope(tmp_path):
+    config = tmp_path / "nginx.conf"
+    config.write_text("ssl_protocols TLSv1 TLSv1.2;\nautoindex on;\n", encoding="utf-8")
+
+    result = analyze_file(config, "nginx", ["directory-listing-enabled"])
+
+    assert result["enabled_rules"] == ["directory-listing-enabled"]
+    assert result["ruleset_version"] == 1
+    assert [finding["id"] for finding in result["findings"]] == [
+        "directory-listing-enabled"
+    ]
+
+
+@pytest.mark.parametrize(
+    ("selected", "message"),
+    [
+        (["unknown-rule"], "not available for domain nginx"),
+        (["privileged-container"], "not available for domain nginx"),
+        (["legacy-tls-protocols", "legacy-tls-protocols"], "duplicate rule IDs"),
+        ([], "at least one"),
+    ],
+)
+def test_rejects_invalid_rule_selection(tmp_path, selected, message):
+    config = tmp_path / "nginx.conf"
+    config.write_text("autoindex on;\n", encoding="utf-8")
+    with pytest.raises(AnalysisError, match=message):
+        analyze_file(config, "nginx", selected)
+
+
 def test_scan_directory_is_bounded_sorted_and_aggregated(tmp_path):
     nested = tmp_path / "nested"
     nested.mkdir()

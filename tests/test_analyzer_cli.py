@@ -47,6 +47,34 @@ def test_analyze_cli_outputs_json(tmp_path):
     assert report["findings"][0]["id"] == "legacy-tls-protocols"
 
 
+def test_analyze_cli_applies_explicit_rule_allowlist(tmp_path):
+    config = tmp_path / "nginx.conf"
+    config.write_text("ssl_protocols TLSv1 TLSv1.2;\nautoindex on;\n", encoding="utf-8")
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "defensive_ai_config_auditor.cli",
+            "analyze",
+            str(config),
+            "--domain",
+            "nginx",
+            "--rule",
+            "directory-listing-enabled",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    report = json.loads(result.stdout)
+    assert report["enabled_rules"] == ["directory-listing-enabled"]
+    assert [finding["id"] for finding in report["findings"]] == [
+        "directory-listing-enabled"
+    ]
+
+
 def test_analyze_cli_rejects_missing_file(tmp_path):
     result = subprocess.run(
         [
