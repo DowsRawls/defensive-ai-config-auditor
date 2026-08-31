@@ -2,6 +2,14 @@
 
 The `analyze` command performs a small set of transparent defensive checks on one local configuration file. It does not call an AI service, access the network, execute the configuration, or modify the input.
 
+Inspect the complete machine-readable catalog before configuring integrations:
+
+```bash
+da-config-audit rules
+```
+
+The catalog is versioned and sorted deterministically. It exposes each stable rule ID, domain, severity, description, and remediation guidance, and remains advisory-only.
+
 ## Usage
 
 ```bash

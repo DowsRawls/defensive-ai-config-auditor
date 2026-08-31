@@ -4,6 +4,25 @@ import sys
 from pathlib import Path
 
 
+def test_rules_cli_outputs_stable_catalog():
+    result = subprocess.run(
+        [sys.executable, "-m", "defensive_ai_config_auditor.cli", "rules"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    report = json.loads(result.stdout)
+    assert report["ruleset_version"] == 1
+    assert report["rules_count"] == 7
+    assert report["advisory_only"] is True
+    assert [(rule["domain"], rule["id"]) for rule in report["rules"]] == sorted(
+        (rule["domain"], rule["id"]) for rule in report["rules"]
+    )
+    assert {rule["severity"] for rule in report["rules"]} == {"medium", "high"}
+
+
 def test_analyze_cli_outputs_json(tmp_path):
     config = tmp_path / "nginx.conf"
     config.write_text("ssl_protocols TLSv1 TLSv1.2;\n", encoding="utf-8")

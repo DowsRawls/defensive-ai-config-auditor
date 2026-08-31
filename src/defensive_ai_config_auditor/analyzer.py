@@ -7,6 +7,8 @@ from typing import Any
 import yaml
 from yaml.nodes import MappingNode, Node, SequenceNode
 
+from .rules import get_rule
+
 MAX_CONFIG_BYTES = 1_000_000
 MAX_SCAN_FILES = 1_000
 DOMAINS = ("docker", "nginx", "linux")
@@ -18,16 +20,15 @@ class AnalysisError(ValueError):
 
 def _finding(
     finding_id: str,
-    severity: str,
     evidence: str,
-    remediation: str,
     lines: list[int],
 ) -> dict[str, Any]:
+    rule = get_rule(finding_id)
     finding: dict[str, Any] = {
         "id": finding_id,
-        "severity": severity,
+        "severity": rule["severity"],
         "evidence": evidence,
-        "remediation": remediation,
+        "remediation": rule["remediation"],
     }
     finding["lines"] = sorted(set(lines))
     return finding
@@ -137,33 +138,25 @@ def _analyze_docker(text: str) -> list[dict[str, Any]]:
     if privileged:
         findings.append(_finding(
             "privileged-container",
-            "high",
             f"privileged: true in services: {', '.join(privileged)}",
-            "Remove privileged mode and grant only individually justified capabilities.",
             privileged_lines,
         ))
     if socket_writable:
         findings.append(_finding(
             "writable-docker-socket",
-            "high",
             f"writable Docker socket in services: {', '.join(sorted(set(socket_writable)))}",
-            "Remove the socket mount or use a narrowly scoped authenticated intermediary.",
             socket_lines,
         ))
     if root_default:
         findings.append(_finding(
             "root-user-default",
-            "medium",
             f"root or no explicit user in services: {', '.join(root_default)}",
-            "Set a verified non-root UID and GID compatible with required file access.",
             root_lines,
         ))
     if writable_root:
         findings.append(_finding(
             "writable-root-filesystem",
-            "medium",
             f"read_only is not true in services: {', '.join(writable_root)}",
-            "Set read_only to true and declare only the required writable mounts.",
             writable_root_lines,
         ))
     return findings
@@ -190,18 +183,14 @@ def _analyze_nginx(text: str) -> list[dict[str, Any]]:
     if legacy:
         findings.append(_finding(
             "legacy-tls-protocols",
-            "high",
             f"ssl_protocols enables: {', '.join(legacy)}",
-            "Permit organization-approved modern TLS versions, normally TLSv1.2 and TLSv1.3.",
             legacy_lines,
         ))
     autoindex = list(re.finditer(r"(?im)^[ \t]*autoindex[ \t]+on[ \t]*;", active))
     if autoindex:
         findings.append(_finding(
             "directory-listing-enabled",
-            "medium",
             "active directive: autoindex on;",
-            "Disable autoindex unless directory browsing is an explicit reviewed requirement.",
             [_match_line(active, match) for match in autoindex],
         ))
     return findings
@@ -215,9 +204,7 @@ def _analyze_linux(text: str) -> list[dict[str, Any]]:
     if root_login and password_login:
         findings.append(_finding(
             "root-password-ssh-login",
-            "high",
             "PermitRootLogin yes and PasswordAuthentication yes are both active",
-            "Prohibit direct root login and use named accounts with audited elevation.",
             [_match_line(active, root_login), _match_line(active, password_login)],
         ))
     return findings
