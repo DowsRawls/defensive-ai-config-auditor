@@ -231,3 +231,21 @@ def test_scan_cli_baseline_gates_only_new_findings(tmp_path):
     assert report["baseline"]["new_findings_count"] == 0
     assert report["baseline"]["unchanged_findings_count"] == 1
     assert report["reports"][0]["findings"][0]["baseline_state"] == "unchanged"
+
+
+def test_text_cli_preserves_policy_exit_and_reports_partial_scan(tmp_path):
+    (tmp_path / "good.conf").write_text("autoindex on;\n", encoding="utf-8")
+    command = [
+        sys.executable, "-m", "defensive_ai_config_auditor.cli", "scan",
+        str(tmp_path), "--domain", "nginx", "--pattern", "*.conf",
+        "--format", "text", "--fail-on", "medium",
+    ]
+    result = subprocess.run(command, capture_output=True, text=True, check=False)
+    assert result.returncode == 2
+    assert "directory-listing-enabled (active)" in result.stdout
+    assert "good.conf:1" in result.stdout
+    (tmp_path / "bad.conf").write_bytes(b"\xff")
+    result = subprocess.run(command, capture_output=True, text=True, check=False)
+    assert result.returncode == 1
+    assert "Files: analyzed=1, failed=1" in result.stdout
+    assert "ERROR: bad.conf:" in result.stdout

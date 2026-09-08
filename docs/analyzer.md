@@ -106,3 +106,16 @@ Policy-eligible counts exclude suppressed findings and, with a baseline, unchang
 findings. Counts represent findings, not source lines; resolved baseline items are
 not current findings. Consult `failed_files` and exit status before treating a scan
 as complete. Existing report fields and baseline compatibility are preserved.
+
+## Terminal output
+
+Use `--format text` with `analyze` or `scan` for a readable report with severity
+counts, policy-eligible counts, source locations, evidence, remediation, exception
+reasons and expiry dates, baseline states, resolved items, and per-file errors.
+Control characters in input-derived text are escaped for terminal display.
+Exit codes and rule selection behave identically across all output formats.
+JSON remains the default and is the required input format for baselines.
+
+```bash
+da-config-audit analyze nginx.conf --domain nginx --format text --fail-on high
+```
