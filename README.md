@@ -81,3 +81,7 @@ This corpus is deliberately small (12 cases) and is suitable for pipeline develo
 ## Contributing and security
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md). Licensed under the MIT License.
+
+For terminal review, add `--format text` to `analyze` or `scan`. JSON reports also
+include severity totals and policy-eligible counts after exceptions and baseline
+comparison; see [report formats](docs/analyzer.md#terminal-output).
