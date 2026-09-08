@@ -96,3 +96,13 @@ Comments are excluded from Nginx and SSH matching. Docker Compose input is parse
 ## Limitations
 
 The rules inspect only the supplied file. They do not resolve Nginx includes, Docker image metadata, Compose overrides, systemd defaults, or SSH configuration precedence. Missing context can change risk, and every finding requires human review. The remediation text is advisory and is never applied automatically.
+
+## Finding summary
+
+JSON CLI reports include a `summary` computed after suppressions and baseline
+comparison: `total`, `active` (unsuppressed), `suppressed`, `by_severity`, and
+`policy_eligible_by_severity`. Severity maps always include low, medium, and high.
+Policy-eligible counts exclude suppressed findings and, with a baseline, unchanged
+findings. Counts represent findings, not source lines; resolved baseline items are
+not current findings. Consult `failed_files` and exit status before treating a scan
+as complete. Existing report fields and baseline compatibility are preserved.

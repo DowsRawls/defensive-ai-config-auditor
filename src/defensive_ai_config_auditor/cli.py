@@ -7,7 +7,7 @@ from pathlib import Path
 from .analyzer import DOMAINS, AnalysisError, analyze_file, scan_directory
 from .baseline import BaselineError, apply_baseline, load_baseline
 from .evaluator import evaluate, load_cases, validate_cases, validate_predictions
-from .reporting import meets_failure_threshold, to_sarif
+from .reporting import meets_failure_threshold, summarize_report, to_sarif
 from .rules import rules_report
 from .suppressions import SuppressionError, apply_suppressions, load_suppressions
 
@@ -48,6 +48,7 @@ def _apply_requested_baseline(report: dict, path: Path | None) -> None:
 
 
 def _print_report(report: dict, output_format: str) -> None:
+    report["summary"] = summarize_report(report)
     output = to_sarif(report) if output_format == "sarif" else report
     print(json.dumps(output, indent=2))
 

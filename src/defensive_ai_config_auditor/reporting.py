@@ -28,6 +28,29 @@ def iter_report_findings(report: dict[str, Any]) -> Iterator[tuple[str, str, dic
             yield domain, filename, finding
 
 
+def summarize_report(report: dict[str, Any]) -> dict[str, Any]:
+    """Count current findings after suppressions and baseline annotation."""
+    findings = [finding for _, _, finding in iter_report_findings(report)]
+    active = [finding for finding in findings if "suppression" not in finding]
+    eligible = [
+        finding for finding in active
+        if "baseline" not in report or finding.get("baseline_state") == "new"
+    ]
+    return {
+        "total": len(findings),
+        "active": len(active),
+        "suppressed": len(findings) - len(active),
+        "by_severity": {
+            severity: sum(finding.get("severity") == severity for finding in findings)
+            for severity in SEVERITY_ORDER
+        },
+        "policy_eligible_by_severity": {
+            severity: sum(finding.get("severity") == severity for finding in eligible)
+            for severity in SEVERITY_ORDER
+        },
+    }
+
+
 def meets_failure_threshold(
     report: dict[str, Any],
     threshold: str,
